@@ -8,11 +8,10 @@ import trimesh
 from pclib.datasets.data_transforms import BaseDataTransform
 
 
-
 def load_dataset(
         dataset_path: str,
         dataset_categories: list[str],
-        dataset_type: str = "BaseDataset",
+        dataset_type: str = "transforms_dataset",
         **kwargs,
 ):
     match dataset_type.lower():
@@ -26,7 +25,7 @@ def load_dataset(
                 dataset_path=dataset_path,
                 categories=dataset_categories,
             )
-        case typ if "transforms" in typ:
+        case typ if "transform" in typ:
             return BaseDatasetWithTransforms(
                 dataset_path=dataset_path,
                 categories=dataset_categories,
@@ -36,8 +35,6 @@ def load_dataset(
             raise ValueError(f"Invalid dataset type: {dataset_type}")
 
 
-
-
 class BaseDataset(Sequence[tuple[np.ndarray, str]]):
     """Dataset class for point cloud classification training.
 
@@ -45,7 +42,7 @@ class BaseDataset(Sequence[tuple[np.ndarray, str]]):
     represented as a tuple of a numpy array of vertices and a category.
     """
 
-    def __init__(self, dataset_path: str, categories: list[str]) -> None:
+    def __init__(self, dataset_path: str, categories: list[str], shuffle: bool = False, phase="train") -> None:
         """Initialize the dataset.
 
         Args:
@@ -57,6 +54,12 @@ class BaseDataset(Sequence[tuple[np.ndarray, str]]):
         for category in categories:
             category_files = glob(os.path.join(dataset_path, category, "*"))
             self._file_paths += itertools.product(category_files, (category,))
+        
+        self.phase = phase
+
+        if shuffle:
+            # so that data is not necessarily ordered by category
+            np.random.shuffle(self._file_paths)
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.
@@ -77,8 +80,9 @@ class BaseDataset(Sequence[tuple[np.ndarray, str]]):
         """
         sample_path, sample_category = self._file_paths[index]
         point_cloud = trimesh.load(sample_path)
-
-        return point_cloud, sample_category
+        if self.phase == "train":
+            return point_cloud, sample_category
+        return point_cloud # for test dataset do not return the category label
 
 
 class Dataset(BaseDataset):
@@ -100,6 +104,19 @@ class BaseDatasetWithTransforms(BaseDataset):
             transforms = [transforms]
         self.transforms = transforms
 
+    def __getitem__(self, index: int) -> tuple[np.ndarray, str]:
+        point_cloud, category = super().__getitem__(index)
+        for transform in self.transforms:
+            point_cloud = transform(point_cloud)
+        return point_cloud, category
+
+
+class LargeDataset(BaseDataset):
+    # imagine there are millions of files in the dataset, do not want to load all the filenames into memory
+    def __init__(self, dataset_path: str, categories: list[str], transforms: list[BaseDataTransform]=None):
+        super().__init__(dataset_path, categories)
+        self.transforms = transforms
+    
     def __getitem__(self, index: int) -> tuple[np.ndarray, str]:
         point_cloud, category = super().__getitem__(index)
         for transform in self.transforms:

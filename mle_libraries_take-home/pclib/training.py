@@ -13,9 +13,7 @@ from pclib.datasets import load_dataset
 
 
 def train_model(
-    dataset_path: str,
-    dataset_categories: list[str],
-    dataset_type: str = "Dataset",
+    dataset,
     model_type: Literal["baseline"] = "baseline",
 ) -> BaselineModel:
     """Train a model on a dataset.
@@ -31,9 +29,6 @@ def train_model(
         model = BaselineModel()
     else:
         raise ValueError(f"Unknown model type: {model_type}")
-    
-    dataset = load_dataset(dataset_path, dataset_categories, dataset_type)
-
     model.train(
         dataset=dataset
     )

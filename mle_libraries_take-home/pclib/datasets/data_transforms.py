@@ -40,6 +40,7 @@ class Normalize(BaseDataTransform):
 class AffineTransfor3D(BaseDataTransform):
     def __init__(self, transform_matrix: np.array = None, method: str = "fixed"):
         self.transform_matrix = None
+        self.method = method
         if transform_matrix is not None:
             self.set_transform_matrix(transform_matrix)
     
@@ -51,9 +52,9 @@ class AffineTransfor3D(BaseDataTransform):
 
     
     def __call__(self, data: trimesh.PointCloud) -> Any:
-        assert self.transform_matrix is not None, "AffineTransfor3D must be initialized with a transform matrix"
         if self.method == "random":
             self.set_random_transform()
+        assert self.transform_matrix is not None, "AffineTransfor3D must be initialized with a transform matrix"
         vertices = data.vertices
         assert vertices.shape[1] == 3, "AffineTransfor3D only supports 3D point clouds"
         N = vertices.shape[0]

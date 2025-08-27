@@ -12,6 +12,7 @@ def load_dataset(
         dataset_path: str,
         dataset_categories: list[str],
         dataset_type: str = "transforms_dataset",
+        phase: str = "train",
         **kwargs,
 ):
     match dataset_type.lower():
@@ -19,16 +20,19 @@ def load_dataset(
             return BaseDataset(
                 dataset_path=dataset_path,
                 categories=dataset_categories,
+                phase=phase,
             )
         case "dataset":
             return Dataset(
                 dataset_path=dataset_path,
                 categories=dataset_categories,
+                phase=phase,
             )
         case typ if "transform" in typ:
             return BaseDatasetWithTransforms(
                 dataset_path=dataset_path,
                 categories=dataset_categories,
+                phase=phase,
                 **kwargs,
             )
         case _:
@@ -86,17 +90,22 @@ class BaseDataset(Sequence[tuple[np.ndarray, str]]):
 
 
 class Dataset(BaseDataset):
-    def __init__(self, dataset_path: str, categories: list[str]):
-        super().__init__(dataset_path, categories)
+    def __init__(self, dataset_path: str, categories: list[str], shuffle: bool = False, phase: str = "train"):
+        super().__init__(dataset_path, categories, shuffle, phase)
     
     def __getitem__(self, index: int) -> tuple[np.ndarray, str]:
-        point_cloud, category = super().__getitem__(index)
-        return np.array(point_cloud.vertices), category
+        if self.phase == "train":
+            point_cloud, category = super().__getitem__(index)
+            return np.array(point_cloud.vertices), category
+        
+        point_cloud = super().__getitem__(index)
+        return np.array(point_cloud.vertices)
+        
 
 
 class BaseDatasetWithTransforms(BaseDataset):
-    def __init__(self, dataset_path: str, categories: list[str], transforms: list[BaseDataTransform]=None):
-        super().__init__(dataset_path, categories)
+    def __init__(self, dataset_path: str, categories: list[str], shuffle: bool = False, phase: str = "train", transforms: list[BaseDataTransform]=[]):
+        super().__init__(dataset_path, categories, shuffle, phase)
         self.transforms = transforms
     
     def set_transforms(self, transforms: list[BaseDataTransform]):
@@ -105,20 +114,13 @@ class BaseDatasetWithTransforms(BaseDataset):
         self.transforms = transforms
 
     def __getitem__(self, index: int) -> tuple[np.ndarray, str]:
-        point_cloud, category = super().__getitem__(index)
+        if self.phase == "train":
+            point_cloud, category = super().__getitem__(index)
+            for transform in self.transforms:
+                point_cloud = transform(point_cloud)
+            return point_cloud, category
+        point_cloud = super().__getitem__(index)
         for transform in self.transforms:
             point_cloud = transform(point_cloud)
-        return point_cloud, category
+        return point_cloud  
 
-
-class LargeDataset(BaseDataset):
-    # imagine there are millions of files in the dataset, do not want to load all the filenames into memory
-    def __init__(self, dataset_path: str, categories: list[str], transforms: list[BaseDataTransform]=None):
-        super().__init__(dataset_path, categories)
-        self.transforms = transforms
-    
-    def __getitem__(self, index: int) -> tuple[np.ndarray, str]:
-        point_cloud, category = super().__getitem__(index)
-        for transform in self.transforms:
-            point_cloud = transform(point_cloud)
-        return point_cloud, category

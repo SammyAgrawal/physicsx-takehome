@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pclib"
+version = "0.1.0"
+description = "Point Cloud Machine Learning Library"
+authors = [
+    {name = "John Doe", email = "john.doe@example.com"},
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+keywords = ["pclib"]
+license = {text = "PROPRIETARY"}
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "trimesh~=4.6.13",
+    "numpy~=2.3.1",
+    "matplotlib~=3.10.3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest~=8.4.1",
+    "pytest-cov~=6.2.1",
+]
+
+examples = [
+    "jupyter~=1.1.1",
+    "tqdm~=4.67.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pclib*"]
